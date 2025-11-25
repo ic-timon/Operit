@@ -59,6 +59,7 @@ import com.ai.assistance.operit.ui.floating.ui.window.viewmodel.*
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.data.model.InputProcessingState
 import com.ai.assistance.operit.data.model.PromptFunctionType
 import com.ai.assistance.operit.ui.floating.FloatContext
 import com.ai.assistance.operit.ui.floating.FloatingMode
@@ -164,6 +165,7 @@ private fun MainWindowBox(
             CloseButtonEffect(floatContext, viewModel)
             TitleBar(floatContext, viewModel)
             ChatContentArea(floatContext, viewModel)
+            ProcessingStatusIndicator(floatContext)
             FloatingChatWindowInputControls(floatContext, viewModel)
         }
 
@@ -485,8 +487,6 @@ private fun ChatMessagesView(
         }
     }
 
-    val isLoading = floatContext.messages.lastOrNull()?.sender == "think"
-
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -523,31 +523,32 @@ private fun ChatMessagesView(
             floatContext.messages.subList(minVisibleIndex, messagesCount)
                 .forEachIndexed { relativeIndex, message ->
                     val actualIndex = minVisibleIndex + relativeIndex
-                    if (message.sender != "think") {
-                        val isLastAiMessage = message.sender == "ai" && actualIndex == lastAiMessageIndex
-                        
-                        key(message.timestamp) {
-                            MessageItem(
-                                index = actualIndex,
-                                message = message,
-                                isLastAiMessage = isLastAiMessage,
-                                userMessageColor = userMessageColor,
-                                aiMessageColor = aiMessageColor,
-                                userTextColor = userTextColor,
-                                aiTextColor = aiTextColor,
-                                systemMessageColor = systemMessageColor,
-                                systemTextColor = systemTextColor,
-                                thinkingBackgroundColor = thinkingBackgroundColor,
-                                thinkingTextColor = thinkingTextColor,
-                                onSelectMessageToEdit = null,
-                                onCopyMessage = null
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
+                    val isLastAiMessage = message.sender == "ai" && actualIndex == lastAiMessageIndex
+                    
+                    key(message.timestamp) {
+                        MessageItem(
+                            index = actualIndex,
+                            message = message,
+                            isLastAiMessage = isLastAiMessage,
+                            userMessageColor = userMessageColor,
+                            aiMessageColor = aiMessageColor,
+                            userTextColor = userTextColor,
+                            aiTextColor = aiTextColor,
+                            systemMessageColor = systemMessageColor,
+                            systemTextColor = systemTextColor,
+                            thinkingBackgroundColor = thinkingBackgroundColor,
+                            thinkingTextColor = thinkingTextColor,
+                            onSelectMessageToEdit = null,
+                            onCopyMessage = null
+                        )
                     }
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
 
-            val lastMessage = floatContext.messages.lastOrNull { it.sender != "think" }
+            val inputProcessingState = floatContext.inputProcessingState.value
+            val isLoading = inputProcessingState !is InputProcessingState.Idle && inputProcessingState !is InputProcessingState.Completed
+            val lastMessage = floatContext.messages.lastOrNull()
+            
             if (isLoading && (lastMessage?.sender == "user" || (lastMessage?.sender == "ai" && lastMessage.content.isBlank()))) {
                 Column(
                     modifier = Modifier
@@ -977,3 +978,60 @@ private fun BoxScope.BottomResizeHandle(
         }
     }
 }
+
+@Composable
+private fun ProcessingStatusIndicator(floatContext: FloatContext) {
+    val state = floatContext.inputProcessingState.value
+    
+    if (state !is InputProcessingState.Idle && state !is InputProcessingState.Completed) {
+        val text = when (state) {
+            is InputProcessingState.Processing -> state.message
+            is InputProcessingState.Connecting -> state.message
+            is InputProcessingState.Receiving -> state.message
+            is InputProcessingState.ExecutingTool -> "正在使用工具: ${state.toolName}"
+            is InputProcessingState.ProcessingToolResult -> "正在处理工具结果: ${state.toolName}"
+            is InputProcessingState.Summarizing -> state.message
+            is InputProcessingState.ExecutingPlan -> state.message
+            is InputProcessingState.Error -> "错误: ${state.message}"
+            else -> "处理中..."
+        }
+        
+        val backgroundColor = if (state is InputProcessingState.Error) 
+            MaterialTheme.colorScheme.errorContainer 
+        else 
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f)
+            
+        val contentColor = if (state is InputProcessingState.Error) 
+            MaterialTheme.colorScheme.onErrorContainer 
+        else 
+            MaterialTheme.colorScheme.onSurfaceVariant
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(backgroundColor)
+                .padding(horizontal = 16.dp, vertical = 4.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (state !is InputProcessingState.Error) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(12.dp),
+                        strokeWidth = 2.dp,
+                        color = contentColor
+                    )
+                }
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = contentColor,
+                    maxLines = 1
+                )
+            }
+        }
+    }
+}
+
+
