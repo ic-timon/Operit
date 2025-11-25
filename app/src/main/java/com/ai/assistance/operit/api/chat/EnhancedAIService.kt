@@ -1236,11 +1236,9 @@ class EnhancedAIService private constructor(private val context: Context) {
                     Log.d(TAG, "传递通知数据 - 角色: $characterName, 内容长度: ${lastReplyContent?.length}, 头像: $avatarUri")
                     
                     // 先发送更新的Intent，然后再停止服务
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        context.startForegroundService(stopIntent)
-                    } else {
-                        context.startService(stopIntent)
-                    }
+                    // 注意：这里使用 startService 而不是 startForegroundService
+                    // 因为服务已经在前台运行，只需要更新数据，不需要重新调用 startForeground()
+                    context.startService(stopIntent)
                     
                     // 稍微延迟后停止服务，确保数据已被接收
                     delay(100)

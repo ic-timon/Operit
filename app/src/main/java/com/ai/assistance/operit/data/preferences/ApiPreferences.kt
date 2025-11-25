@@ -86,15 +86,6 @@ class ApiPreferences private constructor(private val context: Context) {
         // Key for Auto Read
         val ENABLE_AUTO_READ = booleanPreferencesKey("enable_auto_read")
 
-        // Key for Waifu Mode
-        val ENABLE_WAIFU_MODE = booleanPreferencesKey("enable_waifu_mode")
-        val WAIFU_CHAR_DELAY = intPreferencesKey("waifu_char_delay") // 每字符延迟（毫秒）
-        val WAIFU_REMOVE_PUNCTUATION = booleanPreferencesKey("waifu_remove_punctuation") // 是否移除标点符号
-        val WAIFU_DISABLE_ACTIONS = booleanPreferencesKey("waifu_disable_actions") // 是否禁止动作表情
-        val WAIFU_ENABLE_EMOTICONS = booleanPreferencesKey("waifu_enable_emoticons") // 是否启用表情包
-        val WAIFU_ENABLE_SELFIE = booleanPreferencesKey("waifu_enable_selfie") // 是否启用自拍功能
-        val WAIFU_SELFIE_PROMPT = stringPreferencesKey("waifu_selfie_prompt") // 自拍功能的外貌提示词
-
         // Key for Tools Enable/Disable
         val ENABLE_TOOLS = booleanPreferencesKey("enable_tools")
 
@@ -127,15 +118,6 @@ class ApiPreferences private constructor(private val context: Context) {
 
         // Default value for Auto Read
         const val DEFAULT_ENABLE_AUTO_READ = false
-
-        // Default value for Waifu Mode
-        const val DEFAULT_ENABLE_WAIFU_MODE = false
-        const val DEFAULT_WAIFU_CHAR_DELAY = 500 // 500ms per character (2 chars per second)
-        const val DEFAULT_WAIFU_REMOVE_PUNCTUATION = false // 默认保留标点符号
-        const val DEFAULT_WAIFU_DISABLE_ACTIONS = false // 默认允许动作表情
-        const val DEFAULT_WAIFU_ENABLE_EMOTICONS = false // 默认不启用表情包
-        const val DEFAULT_WAIFU_ENABLE_SELFIE = false // 默认不启用自拍功能
-        const val DEFAULT_WAIFU_SELFIE_PROMPT = "kipfel vrchat, long hair, Matcha color hair, purple eyes, sweater vest, black skirt, black necktie, collared shirt, long sleeves, black headwear, beanie, pleated skirt, hair bun, white shirt, hair ribbon, hairclip, hair between eyes, black footwear, blush, hair ornament, cat hat, very long hair, sweater, animal ear headwear, bag, bandaid on leg, socks" // 默认外貌提示词
 
         // Default value for Tools Enable/Disable
         const val DEFAULT_ENABLE_TOOLS = true
@@ -229,42 +211,6 @@ class ApiPreferences private constructor(private val context: Context) {
             preferences[ENABLE_AUTO_READ] ?: DEFAULT_ENABLE_AUTO_READ
         }
 
-    // Flow for Waifu Mode
-    val enableWaifuModeFlow: Flow<Boolean> =
-        context.apiDataStore.data.map { preferences ->
-            preferences[ENABLE_WAIFU_MODE] ?: DEFAULT_ENABLE_WAIFU_MODE
-        }
-
-    val waifuCharDelayFlow: Flow<Int> =
-        context.apiDataStore.data.map { preferences ->
-            preferences[WAIFU_CHAR_DELAY] ?: DEFAULT_WAIFU_CHAR_DELAY
-        }
-
-    val waifuRemovePunctuationFlow: Flow<Boolean> =
-        context.apiDataStore.data.map { preferences ->
-            preferences[WAIFU_REMOVE_PUNCTUATION] ?: DEFAULT_WAIFU_REMOVE_PUNCTUATION
-        }
-
-    val waifuDisableActionsFlow: Flow<Boolean> =
-        context.apiDataStore.data.map { preferences ->
-            preferences[WAIFU_DISABLE_ACTIONS] ?: DEFAULT_WAIFU_DISABLE_ACTIONS
-        }
-
-    val waifuEnableEmoticonsFlow: Flow<Boolean> =
-        context.apiDataStore.data.map { preferences ->
-            preferences[WAIFU_ENABLE_EMOTICONS] ?: DEFAULT_WAIFU_ENABLE_EMOTICONS
-        }
-
-    val waifuEnableSelfieFlow: Flow<Boolean> =
-        context.apiDataStore.data.map { preferences ->
-            preferences[WAIFU_ENABLE_SELFIE] ?: DEFAULT_WAIFU_ENABLE_SELFIE
-        }
-
-    val waifuSelfiePromptFlow: Flow<String> =
-        context.apiDataStore.data.map { preferences ->
-            preferences[WAIFU_SELFIE_PROMPT] ?: DEFAULT_WAIFU_SELFIE_PROMPT
-        }
-
     // Flow for Tools Enable/Disable
     val enableToolsFlow: Flow<Boolean> =
         context.apiDataStore.data.map { preferences ->
@@ -345,80 +291,27 @@ class ApiPreferences private constructor(private val context: Context) {
 
     // Save Thinking Guidance setting
     suspend fun saveEnableThinkingGuidance(isEnabled: Boolean) {
-        context.apiDataStore.edit { preferences ->
-            preferences[ENABLE_THINKING_GUIDANCE] = isEnabled
-        }
+        context.apiDataStore.edit { preferences -> preferences[ENABLE_THINKING_GUIDANCE] = isEnabled }
     }
 
     // Save Memory Attachment setting
     suspend fun saveEnableMemoryQuery(isEnabled: Boolean) {
-        context.apiDataStore.edit { preferences ->
-            preferences[ENABLE_MEMORY_QUERY] = isEnabled
-        }
+        context.apiDataStore.edit { preferences -> preferences[ENABLE_MEMORY_QUERY] = isEnabled }
     }
 
     // Save Auto Read setting
     suspend fun saveEnableAutoRead(isEnabled: Boolean) {
-        context.apiDataStore.edit { preferences ->
-            preferences[ENABLE_AUTO_READ] = isEnabled
-        }
-    }
-
-    // Save Waifu Mode setting
-    suspend fun saveEnableWaifuMode(isEnabled: Boolean) {
-        context.apiDataStore.edit { preferences ->
-            preferences[ENABLE_WAIFU_MODE] = isEnabled
-        }
-    }
-
-    suspend fun saveWaifuCharDelay(delayMs: Int) {
-        context.apiDataStore.edit { preferences ->
-            preferences[WAIFU_CHAR_DELAY] = delayMs
-        }
-    }
-
-    suspend fun saveWaifuRemovePunctuation(removePunctuation: Boolean) {
-        context.apiDataStore.edit { preferences ->
-            preferences[WAIFU_REMOVE_PUNCTUATION] = removePunctuation
-        }
-    }
-
-    suspend fun saveWaifuDisableActions(disableActions: Boolean) {
-        context.apiDataStore.edit { preferences ->
-            preferences[WAIFU_DISABLE_ACTIONS] = disableActions
-        }
-    }
-
-    suspend fun saveWaifuEnableEmoticons(enableEmoticons: Boolean) {
-        context.apiDataStore.edit { preferences ->
-            preferences[WAIFU_ENABLE_EMOTICONS] = enableEmoticons
-        }
-    }
-
-    suspend fun saveWaifuEnableSelfie(enableSelfie: Boolean) {
-        context.apiDataStore.edit { preferences ->
-            preferences[WAIFU_ENABLE_SELFIE] = enableSelfie
-        }
-    }
-
-    suspend fun saveWaifuSelfiePrompt(selfiePrompt: String) {
-        context.apiDataStore.edit { preferences ->
-            preferences[WAIFU_SELFIE_PROMPT] = selfiePrompt
-        }
+        context.apiDataStore.edit { preferences -> preferences[ENABLE_AUTO_READ] = isEnabled }
     }
 
     // Save Tools Enable/Disable setting
     suspend fun saveEnableTools(isEnabled: Boolean) {
-        context.apiDataStore.edit { preferences ->
-            preferences[ENABLE_TOOLS] = isEnabled
-        }
+        context.apiDataStore.edit { preferences -> preferences[ENABLE_TOOLS] = isEnabled }
     }
 
     // Save Disable Stream Output setting
     suspend fun saveDisableStreamOutput(isDisabled: Boolean) {
-        context.apiDataStore.edit { preferences ->
-            preferences[DISABLE_STREAM_OUTPUT] = isDisabled
-        }
+        context.apiDataStore.edit { preferences -> preferences[DISABLE_STREAM_OUTPUT] = isDisabled }
     }
 
     // 保存显示和行为设置的方法，不会影响模型参数

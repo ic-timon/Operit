@@ -7,6 +7,7 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -23,6 +24,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Send
@@ -62,6 +64,7 @@ import com.ai.assistance.operit.ui.floating.FloatingMode
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import android.content.Intent
 
 /** 渲染悬浮窗的窗口模式界面 - 简化版 */
 @Composable
@@ -257,7 +260,7 @@ private fun TitleBar(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(start = 80.dp, end = 50.dp)
+                    .padding(start = 80.dp, end = 90.dp)
                                 .pointerInput(Unit) {
                                     detectDragGestures(
                                         onDragStart = { viewModel.startDragging() },
@@ -273,14 +276,42 @@ private fun TitleBar(
                     }
             )
             
-            // 右侧关闭按钮
-            CloseButton(
-                viewModel = viewModel,
-                errorColor = errorColor,
-                onSurfaceVariantColor = onSurfaceVariantColor,
-                modifier = Modifier.align(Alignment.CenterEnd)
+            // 右侧按钮组
+            Row(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                viewModel.closeButtonPressed = true
+                // 返回主应用按钮
+                TitleBarButton(
+                    icon = Icons.Default.Home,
+                    description = "返回主应用",
+                    onClick = {
+                        // 启动 MainActivity 返回主应用
+                        try {
+                            val context = floatContext.chatService
+                            if (context != null) {
+                                val intent = Intent(context, com.ai.assistance.operit.ui.main.MainActivity::class.java).apply {
+                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                                }
+                                context.startActivity(intent)
+                            }
+                        } catch (e: Exception) {
+                            Log.e("FloatingChatWindow", "启动 MainActivity 失败", e)
+                        }
+                        // 然后关闭悬浮窗
+                        floatContext.onClose()
+                    }
+                )
+                // 关闭按钮
+                CloseButton(
+                    viewModel = viewModel,
+                    errorColor = errorColor,
+                    onSurfaceVariantColor = onSurfaceVariantColor
+                ) {
+                    viewModel.closeButtonPressed = true
+                }
             }
         }
     }
@@ -410,6 +441,10 @@ private fun ChatMessagesView(
     val thinkingBackgroundColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
     val thinkingTextColor = MaterialTheme.colorScheme.onSurfaceVariant
 
+    // 分页参数
+    val messagesPerPage = 10
+    var currentDepth = remember(floatContext.messages) { mutableStateOf(1) }
+
                                 LaunchedEffect(floatContext.messages.size) {
         val lastAiMessage = floatContext.messages.lastOrNull { it.sender == "ai" }
                                     val stream = lastAiMessage?.contentStream
@@ -440,11 +475,34 @@ private fun ChatMessagesView(
                                         .verticalScroll(scrollState)
             .padding(horizontal = 16.dp, vertical = 16.dp)
                                 ) {
-                                    floatContext.messages.forEachIndexed { index, message ->
+                                    // 分页逻辑
+                                    val messagesCount = floatContext.messages.size
+                                    val maxVisibleIndex = messagesCount - 1
+                                    val minVisibleIndex = maxOf(0, maxVisibleIndex - currentDepth.value * messagesPerPage + 1)
+                                    val hasMoreMessages = minVisibleIndex > 0
+
+                                    // 加载更多按钮
+                                    if (hasMoreMessages) {
+                                        Text(
+                                            text = stringResource(id = R.string.load_more_history),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable { currentDepth.value += 1 }
+                                                .padding(vertical = 16.dp),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = Color.Gray,
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                    }
+
+                                    // 根据当前深度筛选显示的消息
+                                    floatContext.messages.subList(minVisibleIndex, messagesCount).forEachIndexed { relativeIndex, message ->
+                                        val actualIndex = minVisibleIndex + relativeIndex
                                         if (message.sender != "think") {
                                             key(message.timestamp) {
                                                 MessageItem(
-                                                    index = index,
+                                                    index = actualIndex,
                                                     message = message,
                                                     allMessages = floatContext.messages,
                                                     userMessageColor = userMessageColor,

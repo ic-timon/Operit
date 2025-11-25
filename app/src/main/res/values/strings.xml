@@ -404,6 +404,10 @@
     <string name="settings_chat_history_management">聊天记录管理</string>
     <string name="settings_chat_history_management_subtitle">查看统计并批量整理、导入导出聊天记录</string>
     
+    <string name="reset_successful">重置成功</string>
+    <string name="reset_default_character">重置默认角色卡</string>
+    <string name="reset_default_character_confirm">确定要重置默认角色卡吗？这将恢复默认的名称、设定和提示词，并重置头像和主题。</string>
+
     <string name="settings_section_ai_model">AI模型配置</string>
     <string name="settings_model_parameters">模型与参数配置</string>
     <string name="settings_model_parameters_desc">配置API设置、模型名称与参数，支持多配置管理</string>

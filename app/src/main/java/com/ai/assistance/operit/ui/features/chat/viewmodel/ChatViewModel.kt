@@ -129,6 +129,9 @@ class ChatViewModel(private val context: Context) : ViewModel() {
     private lateinit var messageProcessingDelegate: MessageProcessingDelegate
     private lateinit var floatingWindowDelegate: FloatingWindowDelegate
     private lateinit var messageCoordinationDelegate: MessageCoordinationDelegate
+    
+    // 最小化应用的回调
+    private var onMinimizeApp: (() -> Unit)? = null
 
     // Use lazy initialization for exposed properties to avoid circular reference issues
     // API配置相关
@@ -430,7 +433,8 @@ class ChatViewModel(private val context: Context) : ViewModel() {
                         coroutineScope = viewModelScope,
                         inputProcessingState = this.inputProcessingState,
                         chatHistoryFlow = chatHistoryDelegate.chatHistory,
-                        chatHistoryDelegate = chatHistoryDelegate
+                        chatHistoryDelegate = chatHistoryDelegate,
+                        onMinimizeApp = { onMinimizeApp?.invoke() }
                 )
     }
 
@@ -914,6 +918,11 @@ class ChatViewModel(private val context: Context) : ViewModel() {
 
     fun toggleFloatingMode(colorScheme: ColorScheme? = null, typography: Typography? = null) {
         floatingWindowDelegate.toggleFloatingMode(colorScheme, typography)
+    }
+    
+    /** 设置最小化应用的回调 */
+    fun setMinimizeAppCallback(callback: () -> Unit) {
+        onMinimizeApp = callback
     }
 
     // 权限相关方法

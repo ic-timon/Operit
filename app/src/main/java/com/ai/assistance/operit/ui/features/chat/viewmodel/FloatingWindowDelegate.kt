@@ -27,7 +27,8 @@ class FloatingWindowDelegate(
     private val coroutineScope: CoroutineScope,
     private val inputProcessingState: StateFlow<InputProcessingState>,
     private val chatHistoryFlow: StateFlow<List<ChatMessage>>? = null,
-    private val chatHistoryDelegate: ChatHistoryDelegate? = null
+    private val chatHistoryDelegate: ChatHistoryDelegate? = null,
+    private val onMinimizeApp: (() -> Unit)? = null // 最小化应用的回调
 ) {
     companion object {
         private const val TAG = "FloatingWindowDelegate"
@@ -86,6 +87,10 @@ class FloatingWindowDelegate(
 
         if (newMode) {
             _isFloatingMode.value = true
+            
+            // 最小化应用
+            onMinimizeApp?.invoke()
+            
             // 启动并绑定服务
             val intent = Intent(context, FloatingChatService::class.java)
             colorScheme?.let {
@@ -123,6 +128,9 @@ class FloatingWindowDelegate(
 
         _isFloatingMode.value = true
 
+        // 最小化应用
+        onMinimizeApp?.invoke()
+        
         val intent = Intent(context, FloatingChatService::class.java)
         // 添加初始模式参数
         intent.putExtra("INITIAL_MODE", mode.name)

@@ -13,6 +13,7 @@ import com.ai.assistance.operit.core.tools.UIPageResultData
 import com.ai.assistance.operit.core.tools.SimplifiedUINode
 import com.ai.assistance.operit.core.config.FunctionalPrompts
 import com.ai.assistance.operit.data.preferences.ApiPreferences
+import com.ai.assistance.operit.data.preferences.WaifuPreferences
 import com.ai.assistance.operit.data.preferences.CharacterCardManager
 import com.ai.assistance.operit.data.model.PromptFunctionType
 import com.ai.assistance.operit.data.preferences.PromptTagManager
@@ -50,6 +51,7 @@ class ConversationService(
     }
 
     private val apiPreferences = ApiPreferences.getInstance(context)
+    private val waifuPreferences = WaifuPreferences.getInstance(context)
     private val characterCardManager = CharacterCardManager.getInstance(context)
     private val userPreferencesManager = preferencesManager
     private val conversationMutex = Mutex()
@@ -215,7 +217,7 @@ class ConversationService(
                 )
 
                 // 构建waifu特殊规则
-                val waifuRulesText = if(apiPreferences.enableWaifuModeFlow.first()) buildWaifuRulesText() else ""
+                val waifuRulesText = if(waifuPreferences.enableWaifuModeFlow.first()) buildWaifuRulesText() else ""
                 // 桌宠模式：添加<mood>标签协议（仅桌宠环境生效）
                 val desktopPetRulesText = if (promptFunctionType == PromptFunctionType.DESKTOP_PET) buildDesktopPetMoodRulesText() else ""
                 Log.d("petRules", desktopPetRulesText)
@@ -597,10 +599,10 @@ class ConversationService(
      * @return 格式化的waifu规则文本，如果没有规则则返回空字符串
      */
     private suspend fun buildWaifuRulesText(): String {
-        val waifuDisableActions = apiPreferences.waifuDisableActionsFlow.first()
-        val waifuEnableEmoticons = apiPreferences.waifuEnableEmoticonsFlow.first()
-        val waifuEnableSelfie = apiPreferences.waifuEnableSelfieFlow.first()
-        val waifuSelfiePrompt = apiPreferences.waifuSelfiePromptFlow.first()
+        val waifuDisableActions = waifuPreferences.waifuDisableActionsFlow.first()
+        val waifuEnableEmoticons = waifuPreferences.waifuEnableEmoticonsFlow.first()
+        val waifuEnableSelfie = waifuPreferences.waifuEnableSelfieFlow.first()
+        val waifuSelfiePrompt = waifuPreferences.waifuSelfiePromptFlow.first()
         val waifuRules = mutableListOf<String>()
         
         if (waifuDisableActions) {

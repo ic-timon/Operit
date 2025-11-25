@@ -87,6 +87,9 @@ fun ModelPromptsSettingsScreen(
     var deletingCharacterCardId by remember { mutableStateOf("") }
     var deletingCharacterCardName by remember { mutableStateOf("") }
 
+    // 重置确认对话框状态
+    var showResetDefaultConfirm by remember { mutableStateOf(false) }
+
     // 酒馆角色卡导入相关状态
     var showImportSuccessMessage by remember { mutableStateOf(false) }
     var showImportErrorMessage by remember { mutableStateOf(false) }
@@ -314,6 +317,16 @@ fun ModelPromptsSettingsScreen(
         }
     }
 
+    // 确认重置默认角色卡
+    fun confirmResetDefaultCharacterCard() {
+        scope.launch {
+            characterCardManager.resetDefaultCharacterCard()
+            showResetDefaultConfirm = false
+            refreshTrigger++
+            Toast.makeText(context, context.getString(R.string.reset_successful), Toast.LENGTH_SHORT).show()
+        }
+    }
+
     // 复制角色卡
     fun duplicateCharacterCard(card: CharacterCard) {
         scope.launch {
@@ -428,9 +441,11 @@ fun ModelPromptsSettingsScreen(
                         },
                         onDeleteCharacterCard = { card -> showDeleteCharacterCardConfirm(card.id, card.name) },
                         onDuplicateCharacterCard = { card -> duplicateCharacterCard(card) },
+                        onResetDefaultCharacterCard = { showResetDefaultConfirm = true },
                         onSetActiveCharacterCard = { cardId ->
                             scope.launch {
                                 characterCardManager.setActiveCharacterCard(cardId)
+                                refreshTrigger++
                             }
                         },
                         onNavigateToPersonaGeneration = onNavigateToPersonaGeneration,
@@ -793,6 +808,30 @@ fun ModelPromptsSettingsScreen(
         )
     }
 
+    // 重置默认角色卡确认对话框
+    if (showResetDefaultConfirm) {
+        AlertDialog(
+            onDismissRequest = { showResetDefaultConfirm = false },
+            title = { Text(stringResource(R.string.reset_default_character)) },
+            text = { Text(stringResource(R.string.reset_default_character_confirm)) },
+            confirmButton = {
+                Button(
+                    onClick = { confirmResetDefaultCharacterCard() },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text(stringResource(R.string.reset))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetDefaultConfirm = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
     // 删除标签确认对话框
     if (showDeleteTagConfirm) {
         AlertDialog(
@@ -864,6 +903,7 @@ fun CharacterCardTab(
     onEditCharacterCard: (CharacterCard) -> Unit,
     onDeleteCharacterCard: (CharacterCard) -> Unit,
     onDuplicateCharacterCard: (CharacterCard) -> Unit,
+    onResetDefaultCharacterCard: () -> Unit,
     onSetActiveCharacterCard: (String) -> Unit,
     onNavigateToPersonaGeneration: () -> Unit,
     onImportTavernCard: () -> Unit
@@ -935,6 +975,7 @@ fun CharacterCardTab(
                 onEdit = { onEditCharacterCard(characterCard) },
                 onDelete = { onDeleteCharacterCard(characterCard) },
                 onDuplicate = { onDuplicateCharacterCard(characterCard) },
+                onReset = onResetDefaultCharacterCard,
                 onSetActive = { onSetActiveCharacterCard(characterCard.id) }
             )
         }
@@ -951,6 +992,7 @@ fun CharacterCardItem(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onDuplicate: () -> Unit,
+    onReset: () -> Unit,
     onSetActive: () -> Unit
 ) {
                         Card(
@@ -1070,6 +1112,23 @@ fun CharacterCardItem(
                                 )
                             }
                         )
+                        
+                        if (characterCard.isDefault) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.reset)) },
+                                onClick = {
+                                    onReset()
+                                    showMenu = false
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.Restore,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            )
+                        }
                         
                         if (!characterCard.isDefault) {
                             DropdownMenuItem(

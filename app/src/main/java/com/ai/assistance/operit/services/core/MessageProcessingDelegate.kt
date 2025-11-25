@@ -16,6 +16,7 @@ import com.ai.assistance.operit.util.stream.share
 import com.ai.assistance.operit.util.WaifuMessageProcessor
 import com.ai.assistance.operit.data.preferences.ApiPreferences
 import com.ai.assistance.operit.data.preferences.CharacterCardManager
+import com.ai.assistance.operit.data.preferences.WaifuPreferences
 import com.ai.assistance.operit.data.preferences.FunctionalConfigManager
 import com.ai.assistance.operit.data.preferences.ModelConfigManager
 import com.ai.assistance.operit.data.preferences.UserPreferencesManager
@@ -309,8 +310,8 @@ class MessageProcessingDelegate(
                 )
 
                 // 检查是否启用waifu模式来决定是否显示流式过程
-                val apiPreferences = ApiPreferences.getInstance(context)
-                val isWaifuModeEnabled = apiPreferences.enableWaifuModeFlow.first()
+                val waifuPreferences = WaifuPreferences.getInstance(context)
+                val isWaifuModeEnabled = waifuPreferences.enableWaifuModeFlow.first()
                 
                 // 只有在非waifu模式下才添加初始的AI消息
                 if (!isWaifuModeEnabled) {
@@ -361,15 +362,15 @@ class MessageProcessingDelegate(
                     
                     // 检查是否启用了waifu模式并且内容适合分句
                     withContext(Dispatchers.IO) {
-                        val apiPreferences = ApiPreferences.getInstance(context)
-                        val isWaifuModeEnabled = apiPreferences.enableWaifuModeFlow.first()
+                        val waifuPreferences = WaifuPreferences.getInstance(context)
+                        val isWaifuModeEnabled = waifuPreferences.enableWaifuModeFlow.first()
                         
                         if (isWaifuModeEnabled && WaifuMessageProcessor.shouldSplitMessage(finalContent)) {
                             Log.d(TAG, "Waifu模式已启用，开始创建独立消息，内容长度: ${finalContent.length}")
                             
                             // 获取配置的字符延迟时间和标点符号设置
-                            val charDelay = apiPreferences.waifuCharDelayFlow.first().toLong()
-                            val removePunctuation = apiPreferences.waifuRemovePunctuationFlow.first()
+                            val charDelay = waifuPreferences.waifuCharDelayFlow.first().toLong()
+                            val removePunctuation = waifuPreferences.waifuRemovePunctuationFlow.first()
                             
                             // 获取当前角色名
                             val currentRoleName = try {
