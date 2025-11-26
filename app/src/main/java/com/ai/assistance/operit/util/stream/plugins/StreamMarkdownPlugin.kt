@@ -52,16 +52,25 @@ class StreamMarkdownFencedCodeBlockPlugin(private val includeFences: Boolean = t
                     )
     private var endMatcher: StreamKmpGraph? = null
     private var isMatchingEndFence = false
+    private var hasStartedMatchingFence = false
 
     override fun processChar(c: Char, atStartOfLine: Boolean): Boolean {
         if (state == PluginState.PROCESSING) {
             // 只有在行首时才开始尝试匹配结束符
             if (atStartOfLine) {
                 isMatchingEndFence = true
+                hasStartedMatchingFence = false
                 endMatcher!!.reset()
             }
 
             if (isMatchingEndFence) {
+                if (!hasStartedMatchingFence) {
+                    if (c == ' ') {
+                        return includeFences
+                    }
+                    hasStartedMatchingFence = true
+                }
+
                 val matcher = endMatcher!!
                 when (matcher.processChar(c)) {
                     is StreamKmpMatchResult.Match -> {
@@ -120,6 +129,7 @@ class StreamMarkdownFencedCodeBlockPlugin(private val includeFences: Boolean = t
         startMatcher.reset()
         endMatcher = null
         isMatchingEndFence = false
+        hasStartedMatchingFence = false
     }
 }
 

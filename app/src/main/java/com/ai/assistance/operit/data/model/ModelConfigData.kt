@@ -108,5 +108,35 @@ data class ModelConfigSummary(
         val name: String,
         val modelName: String = "",
         val apiEndpoint: String = "",
-        val apiProviderType: ApiProviderType = ApiProviderType.DEEPSEEK
+        val apiProviderType: ApiProviderType = ApiProviderType.DEEPSEEK,
+        val modelIndex: Int = 0 // 当modelName包含多个模型（逗号分隔）时，选择第几个模型（从0开始）
 )
+
+/** 从逗号分隔的模型名称字符串中根据索引获取具体模型 */
+fun getModelByIndex(modelName: String, index: Int): String {
+    if (modelName.isEmpty()) return ""
+    val models = modelName.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+    return if (index >= 0 && index < models.size) models[index] else models.getOrNull(0) ?: ""
+}
+
+/** 获取模型列表 */
+fun getModelList(modelName: String): List<String> {
+    if (modelName.isEmpty()) return emptyList()
+    return modelName.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+}
+
+/** 
+ * 计算有效的模型索引（处理越界情况）
+ * 如果索引超出范围，自动返回0（第一个模型）
+ * @param modelName 逗号分隔的模型名称字符串
+ * @param requestedIndex 请求的索引
+ * @return 有效的索引值（0到模型数量-1之间）
+ */
+fun getValidModelIndex(modelName: String, requestedIndex: Int): Int {
+    val modelList = getModelList(modelName)
+    return if (requestedIndex >= 0 && requestedIndex < modelList.size) {
+        requestedIndex
+    } else {
+        0 // 索引越界时使用第一个
+    }
+}

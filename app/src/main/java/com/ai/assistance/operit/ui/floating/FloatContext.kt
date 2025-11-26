@@ -52,53 +52,28 @@ fun rememberFloatContext(
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
 
-    // 只在真正需要重新创建 Context 时才通过 remember 的 key 触发
-    // 对于频繁变化的数据（如 messages, 坐标等），使用 SideEffect 更新
+    // 创建稳定的 FloatContext 实例，只依赖真正不会改变的架构性参数
+    // 这样可以避免不必要的实例重建，提高性能
     val floatContext = remember(
-            // 回调函数通常是稳定的或者我们希望它们更新时Context重建（如果它们捕获了外部状态）
-            // 但为了最大程度避免重建，我们可以只依赖那些“架构性”的参数
-            onClose,
-            onResize,
-            onScaleChange,
-            onModeChange,
-            onMove,
-            snapToEdge,
-            saveWindowState,
-            onSendMessage,
-            onCancelMessage,
-            onAttachmentRequest,
-            onRemoveAttachment,
-            onInputFocusRequest,
-            chatService,
-            windowState,
-            inputProcessingState // State object itself is stable reference
+            chatService,      // 服务实例通常是稳定的
+            windowState,      // 窗口状态实例是稳定的
+            density,          // Density 在配置改变前是稳定的
+            scope             // CoroutineScope 是稳定的
     ) {
         FloatContext(
                 initialMessages = messages,
                 initialWidth = width,
                 initialHeight = height,
-                onClose = onClose,
-                onResize = onResize,
                 ballSize = ballSize,
                 initialWindowScale = windowScale,
-                onScaleChange = onScaleChange,
                 initialMode = currentMode,
                 initialPreviousMode = previousMode,
-                onModeChange = onModeChange,
-                onMove = onMove,
-                snapToEdge = snapToEdge,
                 initialIsAtEdge = isAtEdge,
                 screenWidth = screenWidth,
                 screenHeight = screenHeight,
                 initialX = currentX,
                 initialY = currentY,
-                saveWindowState = saveWindowState,
-                onSendMessage = onSendMessage,
-                onCancelMessage = onCancelMessage,
-                onAttachmentRequest = onAttachmentRequest,
                 initialAttachments = attachments,
-                onRemoveAttachment = onRemoveAttachment,
-                onInputFocusRequest = onInputFocusRequest,
                 density = density,
                 coroutineScope = scope,
                 chatService = chatService,
@@ -107,8 +82,37 @@ fun rememberFloatContext(
         )
     }
 
-    // 使用 SideEffect 更新频繁变化的状态
+    // 使用 rememberUpdatedState 来持有最新的回调函数，避免作为 remember 的 key
+    val currentOnClose by rememberUpdatedState(onClose)
+    val currentOnResize by rememberUpdatedState(onResize)
+    val currentOnScaleChange by rememberUpdatedState(onScaleChange)
+    val currentOnModeChange by rememberUpdatedState(onModeChange)
+    val currentOnMove by rememberUpdatedState(onMove)
+    val currentSnapToEdge by rememberUpdatedState(snapToEdge)
+    val currentSaveWindowState by rememberUpdatedState(saveWindowState)
+    val currentOnSendMessage by rememberUpdatedState(onSendMessage)
+    val currentOnCancelMessage by rememberUpdatedState(onCancelMessage)
+    val currentOnAttachmentRequest by rememberUpdatedState(onAttachmentRequest)
+    val currentOnRemoveAttachment by rememberUpdatedState(onRemoveAttachment)
+    val currentOnInputFocusRequest by rememberUpdatedState(onInputFocusRequest)
+
+    // 使用 SideEffect 更新回调函数和频繁变化的状态
     SideEffect {
+        // 更新回调函数
+        floatContext.onClose = currentOnClose
+        floatContext.onResize = currentOnResize
+        floatContext.onScaleChange = currentOnScaleChange
+        floatContext.onModeChange = currentOnModeChange
+        floatContext.onMove = currentOnMove
+        floatContext.snapToEdge = currentSnapToEdge
+        floatContext.saveWindowState = currentSaveWindowState
+        floatContext.onSendMessage = currentOnSendMessage
+        floatContext.onCancelMessage = currentOnCancelMessage
+        floatContext.onAttachmentRequest = currentOnAttachmentRequest
+        floatContext.onRemoveAttachment = currentOnRemoveAttachment
+        floatContext.onInputFocusRequest = currentOnInputFocusRequest
+        
+        // 更新频繁变化的数据
         floatContext.messages = messages
         floatContext.windowWidthState = width
         floatContext.windowHeightState = height
@@ -119,8 +123,6 @@ fun rememberFloatContext(
         floatContext.currentX = currentX
         floatContext.currentY = currentY
         floatContext.attachments = attachments
-        // inputProcessingState is a State object held by FloatContext, no need to update it via SideEffect
-        // as the State object reference doesn't change, but its .value will change.
     }
 
     return floatContext
@@ -131,34 +133,36 @@ class FloatContext(
         initialMessages: List<ChatMessage>,
         initialWidth: Dp,
         initialHeight: Dp,
-        val onClose: () -> Unit,
-        val onResize: (Dp, Dp) -> Unit,
         val ballSize: Dp,
         initialWindowScale: Float,
-        val onScaleChange: (Float) -> Unit,
         initialMode: FloatingMode,
         initialPreviousMode: FloatingMode,
-        val onModeChange: (FloatingMode) -> Unit,
-        val onMove: (Float, Float, Float) -> Unit,
-        val snapToEdge: (Boolean) -> Unit,
         initialIsAtEdge: Boolean,
         val screenWidth: Dp,
         val screenHeight: Dp,
         initialX: Float,
         initialY: Float,
-        val saveWindowState: (() -> Unit)?,
-        val onSendMessage: ((String, PromptFunctionType) -> Unit)?,
-        val onCancelMessage: (() -> Unit)?,
-        val onAttachmentRequest: ((String) -> Unit)?,
         initialAttachments: List<AttachmentInfo>,
-        val onRemoveAttachment: ((String) -> Unit)?,
-        val onInputFocusRequest: ((Boolean) -> Unit)?,
         val density: Density,
         val coroutineScope: CoroutineScope,
         val chatService: FloatingChatService? = null,
         val windowState: FloatingWindowState? = null,
         val inputProcessingState: State<InputProcessingState>
 ) {
+    // 回调函数使用 var 以便通过 SideEffect 更新
+    var onClose: () -> Unit = {}
+    var onResize: (Dp, Dp) -> Unit = { _, _ -> }
+    var onScaleChange: (Float) -> Unit = {}
+    var onModeChange: (FloatingMode) -> Unit = {}
+    var onMove: (Float, Float, Float) -> Unit = { _, _, _ -> }
+    var snapToEdge: (Boolean) -> Unit = {}
+    var saveWindowState: (() -> Unit)? = null
+    var onSendMessage: ((String, PromptFunctionType) -> Unit)? = null
+    var onCancelMessage: (() -> Unit)? = null
+    var onAttachmentRequest: ((String) -> Unit)? = null
+    var onRemoveAttachment: ((String) -> Unit)? = null
+    var onInputFocusRequest: ((Boolean) -> Unit)? = null
+
     // 使用 mutableStateOf 让 Compose 能感知变化
     var messages by mutableStateOf(initialMessages)
     var windowWidthState by mutableStateOf(initialWidth)

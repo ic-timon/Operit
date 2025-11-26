@@ -61,8 +61,12 @@ import com.ai.assistance.operit.data.model.ModelConfigSummary
 import com.ai.assistance.operit.data.model.PreferenceProfile
 import com.ai.assistance.operit.data.model.PromptProfile
 import com.ai.assistance.operit.data.preferences.FunctionalConfigManager
+import com.ai.assistance.operit.data.preferences.FunctionConfigMapping
 import com.ai.assistance.operit.data.preferences.ModelConfigManager
 import com.ai.assistance.operit.data.model.PromptFunctionType
+import com.ai.assistance.operit.data.model.getModelByIndex
+import com.ai.assistance.operit.data.model.getModelList
+import com.ai.assistance.operit.data.model.getValidModelIndex
 import com.ai.assistance.operit.data.preferences.PromptPreferencesManager
 import com.ai.assistance.operit.data.preferences.UserPreferencesManager
 import com.ai.assistance.operit.ui.permissions.PermissionLevel
@@ -121,10 +125,14 @@ fun ChatSettingsBar(
     val modelConfigManager = remember { ModelConfigManager(context) }
     val configMapping by
             functionalConfigManager.functionConfigMappingFlow.collectAsState(initial = emptyMap())
+    val configMappingWithIndex by
+            functionalConfigManager.functionConfigMappingWithIndexFlow.collectAsState(initial = emptyMap())
     var configSummaries by remember { mutableStateOf<List<ModelConfigSummary>>(emptyList()) }
     LaunchedEffect(Unit) { configSummaries = modelConfigManager.getAllConfigSummaries() }
     val currentConfigId =
             configMapping[FunctionType.CHAT] ?: FunctionalConfigManager.DEFAULT_CONFIG_ID
+    val currentConfigMapping =
+            configMappingWithIndex[FunctionType.CHAT] ?: FunctionConfigMapping(FunctionalConfigManager.DEFAULT_CONFIG_ID, 0)
     
     // 获取上下文长度设置，用于显示在 MaxMode 描述中
     // 新增：用户偏好（记忆）选择逻辑
@@ -142,9 +150,9 @@ fun ChatSettingsBar(
     val chatSettingsBarRightMargin by
             userPreferencesManager.chatSettingsButtonEndPadding.collectAsState(initial = 2f)
 
-    val onSelectModel: (String) -> Unit = { selectedId ->
+    val onSelectModel: (String, Int) -> Unit = { selectedId, modelIndex ->
         scope.launch {
-            functionalConfigManager.setConfigForFunction(FunctionType.CHAT, selectedId)
+            functionalConfigManager.setConfigForFunction(FunctionType.CHAT, selectedId, modelIndex)
             EnhancedAIService.refreshServiceForFunction(context, FunctionType.CHAT)
         }
     }
@@ -292,7 +300,7 @@ fun ChatSettingsBar(
                             // 模型选择器
                             ModelSelectorItem(
                                 configSummaries = configSummaries,
-                                currentConfigId = currentConfigId,
+                                currentConfigMapping = currentConfigMapping,
                                 onSelectModel = onSelectModel,
                                 expanded = showModelDropdown,
                                     onExpandedChange = { showModelDropdown = it },
@@ -972,14 +980,15 @@ private fun MemorySelectorItem(
 @Composable
 private fun ModelSelectorItem(
     configSummaries: List<ModelConfigSummary>,
-    currentConfigId: String,
-    onSelectModel: (String) -> Unit,
+    currentConfigMapping: FunctionConfigMapping,
+    onSelectModel: (String, Int) -> Unit,
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
     onManageClick: () -> Unit,
     onInfoClick: () -> Unit
 ) {
-    val currentConfig = configSummaries.find { it.id == currentConfigId }
+    val currentConfig = configSummaries.find { it.id == currentConfigMapping.configId }
+    var expandedConfigId by remember { mutableStateOf<String?>(null) } // 用于记录当前展开的配置的模型列表
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -1016,8 +1025,21 @@ private fun ModelSelectorItem(
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = currentConfig?.name ?: stringResource(R.string.not_selected),
+                // 只显示选中的模型名称
+                currentConfig?.let { config ->
+                    val validIndex = getValidModelIndex(config.modelName, currentConfigMapping.modelIndex)
+                    val selectedModel = getModelByIndex(config.modelName, validIndex)
+                    Text(
+                        text = selectedModel.ifEmpty { stringResource(R.string.not_selected) },
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                } ?: Text(
+                    text = stringResource(R.string.not_selected),
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.primary,
                     maxLines = 1,
@@ -1043,49 +1065,123 @@ private fun ModelSelectorItem(
                     .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
                 configSummaries.forEach { config ->
-                    val isSelected = config.id == currentConfigId
-                    Box(
-                            modifier =
-                                    Modifier.fillMaxWidth()
-                            .clip(RoundedCornerShape(4.dp))
-                                            .background(
-                                                    if (isSelected)
-                                                            MaterialTheme.colorScheme.primary.copy(
-                                                                    alpha = 0.1f
-                                                            )
-                                                    else Color.Transparent
-                                            )
-                            .clickable {
-                                onSelectModel(config.id)
-                                onExpandedChange(false)
-                            }
-                            .padding(horizontal = 8.dp, vertical = 6.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
+                    val isSelected = config.id == currentConfigMapping.configId
+                    val modelList = getModelList(config.modelName)
+                    val hasMultipleModels = modelList.size > 1
+                    val isExpanded = expandedConfigId == config.id
+                    
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Box(
+                                modifier =
+                                        Modifier.fillMaxWidth()
+                                .clip(RoundedCornerShape(4.dp))
+                                                .background(
+                                                        if (isSelected)
+                                                                MaterialTheme.colorScheme.primary.copy(
+                                                                        alpha = 0.1f
+                                                                )
+                                                        else Color.Transparent
+                                                )
+                                .clickable {
+                                    if (hasMultipleModels) {
+                                        // 如果有多个模型，切换展开状态
+                                        expandedConfigId = if (isExpanded) null else config.id
+                                    } else {
+                                        // 如果只有一个模型，直接选择
+                                        onSelectModel(config.id, 0)
+                                        onExpandedChange(false)
+                                    }
+                                }
+                                .padding(horizontal = 8.dp, vertical = 6.dp)
                         ) {
-                            Text(
-                                text = config.name,
-                                    fontWeight =
-                                            if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color =
-                                            if (isSelected) MaterialTheme.colorScheme.primary
-                                            else MaterialTheme.colorScheme.onSurface,
-                                fontSize = 13.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = config.modelName,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 11.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = config.name,
+                                        fontWeight =
+                                                if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color =
+                                                if (isSelected) MaterialTheme.colorScheme.primary
+                                                else MaterialTheme.colorScheme.onSurface,
+                                    fontSize = 13.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                if (hasMultipleModels) {
+                                    Text(
+                                        text = "${modelList.size}个模型",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontSize = 10.sp
+                                    )
+                                    Icon(
+                                        imageVector = if (isExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                } else {
+                                    Text(
+                                        text = config.modelName,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontSize = 11.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                        
+                        // 如果有多个模型且已展开，显示模型列表
+                        if (hasMultipleModels && isExpanded) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                                    .padding(start = 16.dp, top = 4.dp, bottom = 4.dp, end = 8.dp)
+                            ) {
+                                // 计算有效索引一次，避免重复计算
+                                val validIndex = getValidModelIndex(config.modelName, currentConfigMapping.modelIndex)
+                                modelList.forEachIndexed { index, modelName ->
+                                    val isModelSelected = isSelected && validIndex == index
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(
+                                                if (isModelSelected)
+                                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                                else Color.Transparent
+                                            )
+                                            .clickable {
+                                                onSelectModel(config.id, index)
+                                                onExpandedChange(false)
+                                                expandedConfigId = null
+                                            }
+                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Text(
+                                            text = modelName,
+                                            fontSize = 12.sp,
+                                            fontWeight = if (isModelSelected) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isModelSelected) 
+                                                MaterialTheme.colorScheme.primary 
+                                            else 
+                                                MaterialTheme.colorScheme.onSurface,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                    if (index < modelList.size - 1) {
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                    }
+                                }
+                            }
                         }
                     }
                     if (configSummaries.last() != config) {

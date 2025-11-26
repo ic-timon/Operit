@@ -312,11 +312,11 @@ fun ModelApiSettingsSection(
             SettingsTextField(
                     title = stringResource(R.string.model_name),
                     subtitle = if (isMnnProvider) stringResource(R.string.mnn_select_downloaded_model) else stringResource(
-                            R.string.model_name_placeholder),
+                            R.string.model_name_placeholder) + " (可用逗号分隔多个模型)",
                         value = modelNameInput,
                         onValueChange = {
                         if (!isMnnProvider && !isUsingDefaultApiKey) {
-                                modelNameInput = it.replace("\n", "").replace("\r", "").replace(" ", "")
+                                modelNameInput = it.replace("\n", "").replace("\r", "")
                             }
                         },
                     enabled = if (isMnnProvider) false else !isUsingDefaultApiKey,
@@ -513,6 +513,15 @@ fun ModelApiSettingsSection(
     // 模型列表对话框
     if (showModelsDialog) {
         var searchQuery by remember { mutableStateOf("") }
+        // 维护已选中的模型集合
+        val selectedModels = remember {
+            mutableStateOf(
+                modelNameInput.split(",")
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() }
+                    .toSet()
+            )
+        }
         val filteredModelsList =
                 remember(searchQuery, modelsList) {
                     if (searchQuery.isEmpty()) modelsList
@@ -671,17 +680,21 @@ fun ModelApiSettingsSection(
                         ) {
                             items(filteredModelsList.size) { index ->
                                 val model = filteredModelsList[index]
-                                // 使用自定义Row替代ListItem以使布局更紧凑
+                                val isSelected = selectedModels.value.contains(model.id)
+                                
+                                // 使用带Checkbox的Row实现多选
                                 Row(
                                         modifier =
                                                 Modifier.fillMaxWidth()
                                                         .clickable {
-                                                            modelNameInput = model.id
-                                                            // MNN提供商：model.id 就是文件夹名称，直接使用即可
-                                                            if (selectedApiProvider == ApiProviderType.MNN) {
-                                                                Log.d(TAG, "选择MNN模型: ${model.id}")
+                                                            // 切换选中状态
+                                                            val newSelection = selectedModels.value.toMutableSet()
+                                                            if (isSelected) {
+                                                                newSelection.remove(model.id)
+                                                            } else {
+                                                                newSelection.add(model.id)
                                                             }
-                                                            showModelsDialog = false
+                                                            selectedModels.value = newSelection
                                                         }
                                                         .padding(
                                                                 horizontal = 12.dp,
@@ -689,10 +702,31 @@ fun ModelApiSettingsSection(
                                                         ),
                                         verticalAlignment = Alignment.CenterVertically
                                 ) {
+                                    Checkbox(
+                                            checked = isSelected,
+                                            onCheckedChange = { checked ->
+                                                val newSelection = selectedModels.value.toMutableSet()
+                                                if (checked) {
+                                                    newSelection.add(model.id)
+                                                } else {
+                                                    newSelection.remove(model.id)
+                                                }
+                                                selectedModels.value = newSelection
+                                            },
+                                            colors = CheckboxDefaults.colors(
+                                                    checkedColor = MaterialTheme.colorScheme.primary
+                                            )
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                             text = model.name,
                                             style = MaterialTheme.typography.bodyMedium,
-                                            modifier = Modifier.weight(1f)
+                                            modifier = Modifier.weight(1f),
+                                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                            color = if (isSelected) 
+                                                    MaterialTheme.colorScheme.primary 
+                                                else 
+                                                    MaterialTheme.colorScheme.onSurface
                                     )
                                 }
 
@@ -715,7 +749,8 @@ fun ModelApiSettingsSection(
                         Text(
                                 text =
                                         stringResource(R.string.models_displayed, filteredModelsList.size) +
-                                                (if (searchQuery.isNotEmpty()) stringResource(R.string.models_displayed_filtered) else ""),
+                                                (if (searchQuery.isNotEmpty()) stringResource(R.string.models_displayed_filtered) else "") +
+                                                (if (selectedModels.value.isNotEmpty()) " • ${selectedModels.value.size} 已选中" else ""),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(top = 6.dp, bottom = 6.dp),
@@ -726,12 +761,31 @@ fun ModelApiSettingsSection(
                     // 底部按钮
                     Row(
                             modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                            horizontalArrangement = Arrangement.End
+                            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
                     ) {
                         FilledTonalButton(
                                 onClick = { showModelsDialog = false },
                                 modifier = Modifier.height(36.dp)
                         ) { Text(stringResource(R.string.close), fontSize = 14.sp) }
+                        
+                        Button(
+                                onClick = {
+                                    // 将选中的模型用逗号连接
+                                    modelNameInput = selectedModels.value.joinToString(",")
+                                    if (selectedApiProvider == ApiProviderType.MNN) {
+                                        Log.d(TAG, "选择MNN模型: $modelNameInput")
+                                    }
+                                    showModelsDialog = false
+                                },
+                                modifier = Modifier.height(36.dp),
+                                enabled = selectedModels.value.isNotEmpty()
+                        ) { 
+                            Text(
+                                stringResource(R.string.confirm_action) + 
+                                    if (selectedModels.value.isNotEmpty()) " (${selectedModels.value.size})" else "",
+                                fontSize = 14.sp
+                            ) 
+                        }
                     }
                 }
             }
