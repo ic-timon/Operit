@@ -1711,20 +1711,41 @@ class ChatViewModel(private val context: Context) : ViewModel() {
 
     /** 初始化语音服务 */
     private fun initializeVoiceService() {
+        // 监听TTS服务类型和配置的变化
         viewModelScope.launch {
-            try {
-                voiceService = VoiceServiceFactory.getInstance(context)
-                val initialized = voiceService?.initialize() ?: false
-                if (!initialized) {
-                    Log.w(TAG, "语音服务初始化失败")
+            combine(
+                speechServicesPreferences.ttsServiceTypeFlow,
+                speechServicesPreferences.ttsHttpConfigFlow
+            ) { type, config ->
+                type to config
+            }.collect { (type, config) ->
+                try {
+                    Log.d(TAG, "TTS配置变化，重新初始化语音服务: type=$type")
+                    
+                    // 停止当前播放
+                    voiceService?.stop()
+                    
+                    // 重置工厂单例，强制重新创建
+                    VoiceServiceFactory.resetInstance()
+                    
+                    // 重新获取服务实例
+                    voiceService = VoiceServiceFactory.getInstance(context)
+                    val initialized = voiceService?.initialize() ?: false
+                    if (!initialized) {
+                        Log.w(TAG, "语音服务初始化失败")
+                    } else {
+                        Log.i(TAG, "语音服务初始化成功")
+                        
+                        // 初始化成功后，重新监听播放状态
+                        viewModelScope.launch {
+                            voiceService?.speakingStateFlow?.collect { isSpeaking ->
+                                _isPlaying.value = isSpeaking
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "初始化语音服务时出错", e)
                 }
-                
-                // 监听语音播放状态
-                voiceService?.speakingStateFlow?.collect { isSpeaking ->
-                    _isPlaying.value = isSpeaking
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "初始化语音服务时出错", e)
             }
         }
     }
@@ -1733,10 +1754,16 @@ class ChatViewModel(private val context: Context) : ViewModel() {
     fun speakMessage(message: String) {
         viewModelScope.launch {
             try {
+                // 如果服务未初始化，等待一段时间让监听协程完成初始化
                 if (voiceService == null) {
-                    initializeVoiceService()
-                    // 等待初始化完成
-                    delay(500)
+                    Log.d(TAG, "语音服务尚未初始化，等待初始化完成...")
+                    delay(1000)
+                }
+
+                if (voiceService == null) {
+                    uiStateDelegate.showToast("语音服务初始化失败，请检查设置")
+                    Log.e(TAG, "语音服务初始化超时")
+                    return@launch
                 }
 
                 val cleanerRegexs = speechServicesPreferences.ttsCleanerRegexsFlow.first()
