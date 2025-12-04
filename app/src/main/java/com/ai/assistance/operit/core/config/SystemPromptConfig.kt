@@ -76,6 +76,12 @@ PACKAGE SYSTEM
 - 这将显示包中的所有工具及其使用方法
 - 只有在激活包后，才能直接使用其工具"""
 
+    // Tool Call API 模式下的工具使用简要说明（保留重要的"调用前描述"指示）
+    private const val TOOL_USAGE_BRIEF_EN = """
+Before calling a tool, briefly describe what you are about to do."""
+    private const val TOOL_USAGE_BRIEF_CN = """
+调用工具前，请简要说明你要做什么。"""
+
     // Tool Call API 模式下的包系统说明（不使用XML格式）
     private const val PACKAGE_SYSTEM_GUIDELINES_TOOL_CALL_EN = """
 PACKAGE SYSTEM
@@ -330,10 +336,10 @@ AVAILABLE_TOOLS_SECTION""".trimIndent()
 
     // Handle tools disable/enable
     if (enableTools) {
-        // 当使用Tool Call API时，移除XML格式的工具使用指南，但保留包系统说明
+        // 当使用Tool Call API时，使用简化的工具使用指南（保留"调用前描述"的重要指示），移除XML格式说明和工具列表
         if (useToolCallApi) {
             prompt = prompt
-                .replace("TOOL_USAGE_GUIDELINES_SECTION", "")
+                .replace("TOOL_USAGE_GUIDELINES_SECTION", if (useEnglish) TOOL_USAGE_BRIEF_EN else TOOL_USAGE_BRIEF_CN)
                 .replace("PACKAGE_SYSTEM_GUIDELINES_SECTION", if (useEnglish) PACKAGE_SYSTEM_GUIDELINES_TOOL_CALL_EN else PACKAGE_SYSTEM_GUIDELINES_TOOL_CALL_CN)
                 .replace("AVAILABLE_TOOLS_SECTION", "")
         } else {

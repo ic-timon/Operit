@@ -1238,7 +1238,13 @@
     
     <!-- Context Menu -->
     <string name="copy_message">Copiar Mensaje</string>
+    <string name="read_message">Leer Mensaje</string>
+    <string name="stop_reading">Detener Lectura</string>
     <string name="edit_and_resend">Editar y Reenviar</string>
+    <string name="reply_message">Responder</string>
+    <string name="select_copy">Seleccionar y Copiar</string>
+    <string name="insert_summary">Insertar Resumen</string>
+    <string name="create_branch">Crear Rama</string>
     <string name="modify_memory">Modificar Memoria</string>
     <string name="delete_from_here">Eliminar desde aquí</string>
     <string name="multi_select">Selección múltiple</string>

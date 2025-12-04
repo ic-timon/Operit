@@ -536,8 +536,10 @@ class MNNProvider(
 
     override suspend fun calculateInputTokens(
         message: String,
-        chatHistory: List<Pair<String, String>>
+        chatHistory: List<Pair<String, String>>,
+        availableTools: List<ToolPrompt>?
     ): Int {
+        // MNN本地模型暂不支持工具调用，忽略availableTools参数
         val prompt = buildPrompt(message, chatHistory)
         return countTokens(prompt)
     }

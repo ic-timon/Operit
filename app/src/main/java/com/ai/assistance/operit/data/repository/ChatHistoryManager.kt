@@ -16,6 +16,8 @@ import com.ai.assistance.operit.data.model.ChatMessage
 import com.ai.assistance.operit.data.model.CharacterCardChatStats
 import com.ai.assistance.operit.data.model.MessageEntity
 import com.ai.assistance.operit.util.LocaleUtils
+import com.ai.assistance.operit.data.converter.*
+import com.ai.assistance.operit.data.exporter.*
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
 import java.io.File
@@ -783,10 +785,18 @@ class ChatHistoryManager private constructor(private val context: Context) {
     }
 
     /**
-     * 导出所有聊天记录到「下载/Operit」目录
+     * 导出所有聊天记录到「下载/Operit」目录（默认 JSON 格式）
      * @return 生成的文件绝对路径，失败时返回null
      */
     suspend fun exportChatHistoriesToDownloads(): String? =
+        exportChatHistoriesToDownloads(ExportFormat.JSON)
+    
+    /**
+     * 导出所有聊天记录到「下载/Operit」目录（支持多种格式）
+     * @param format 导出格式
+     * @return 生成的文件绝对路径，失败时返回null
+     */
+    suspend fun exportChatHistoriesToDownloads(format: ExportFormat): String? =
         withContext(Dispatchers.IO) {
             try {
                 val chatHistoriesBasic = chatHistoriesFlow.first()
@@ -807,15 +817,36 @@ class ChatHistoryManager private constructor(private val context: Context) {
 
                 val dateFormat = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault())
                 val timestamp = dateFormat.format(Date())
-                val exportFile = File(exportDir, "chat_backup_$timestamp.json")
-
-                val json = Json {
-                    prettyPrint = true
-                    encodeDefaults = true
+                
+                // 根据格式生成文件名和内容
+                val (fileName, content) = when (format) {
+                    ExportFormat.JSON -> {
+                        val json = Json {
+                            prettyPrint = true
+                            encodeDefaults = true
+                        }
+                        "chat_backup_$timestamp.json" to json.encodeToString(completeHistories)
+                    }
+                    ExportFormat.MARKDOWN -> {
+                        "chat_backup_$timestamp.md" to MarkdownExporter.exportMultiple(completeHistories)
+                    }
+                    ExportFormat.HTML -> {
+                        "chat_backup_$timestamp.html" to HtmlExporter.exportMultiple(completeHistories)
+                    }
+                    ExportFormat.TXT -> {
+                        "chat_backup_$timestamp.txt" to TextExporter.exportMultiple(completeHistories)
+                    }
+                    ExportFormat.CSV -> {
+                        // CSV 格式暂不实现，使用 JSON
+                        "chat_backup_$timestamp.json" to Json {
+                            prettyPrint = true
+                            encodeDefaults = true
+                        }.encodeToString(completeHistories)
+                    }
                 }
-
-                val jsonString = json.encodeToString(completeHistories)
-                exportFile.writeText(jsonString)
+                
+                val exportFile = File(exportDir, fileName)
+                exportFile.writeText(content)
 
                 exportFile.absolutePath
             } catch (e: Exception) {
@@ -825,48 +856,32 @@ class ChatHistoryManager private constructor(private val context: Context) {
         }
 
     /**
-     * 从指定URI导入聊天记录
+     * 从指定URI导入聊天记录（指定格式）
      * @param uri 备份文件URI
+     * @param format 指定的格式
      * @return 导入结果统计
      */
-    suspend fun importChatHistoriesFromUri(uri: Uri): ChatImportResult =
+    suspend fun importChatHistoriesFromUri(uri: Uri, format: ChatFormat): ChatImportResult =
         withContext(Dispatchers.IO) {
             try {
                 val inputStream = context.contentResolver.openInputStream(uri)
                     ?: return@withContext ChatImportResult(0, 0, 0)
-                val jsonString = inputStream.bufferedReader().use { it.readText() }
+                val content = inputStream.bufferedReader().use { it.readText() }
 
-                if (jsonString.isBlank()) {
+                if (content.isBlank()) {
                     throw Exception("导入的文件为空")
                 }
 
-                val json = Json {
-                    ignoreUnknownKeys = true
-                    isLenient = true
-                    encodeDefaults = true
-                }
-
-                val chatHistories =
-                    try {
-                        json.decodeFromString<List<ChatHistory>>(jsonString)
-                    } catch (e: Exception) {
-                        Log.e(TAG, "使用kotlinx.serialization解析聊天备份失败", e)
-                        try {
-                            val gson = GsonBuilder()
-                                .setDateFormat("yyyy-MM-dd'T'HH:mm:ss")
-                                .create()
-                            val type = object : TypeToken<List<ChatHistory>>() {}.type
-                            gson.fromJson<List<ChatHistory>>(jsonString, type)
-                        } catch (e2: Exception) {
-                            Log.e(TAG, "使用Gson解析聊天备份也失败", e2)
-                            throw Exception("无法解析备份文件：${e.message}\n备份文件可能已损坏或格式不兼容")
-                        }
-                    }
+                Log.d(TAG, "使用指定格式导入: $format")
+                
+                // 转换为 ChatHistory 列表
+                val chatHistories = convertToOperitFormat(content, format)
 
                 if (chatHistories.isEmpty()) {
                     return@withContext ChatImportResult(0, 0, 0)
                 }
 
+                // 保存导入的对话
                 val existingIds = chatHistoriesFlow.first().map { it.id }.toSet()
 
                 var newCount = 0
@@ -888,12 +903,75 @@ class ChatHistoryManager private constructor(private val context: Context) {
                     saveChatHistory(chatHistory)
                 }
 
+                Log.d(TAG, "导入完成: 新增=$newCount, 更新=$updatedCount, 跳过=$skippedCount")
                 ChatImportResult(newCount, updatedCount, skippedCount)
             } catch (e: Exception) {
                 Log.e(TAG, "导入聊天记录失败", e)
                 throw e
             }
         }
+    
+    /**
+     * 将内容转换为 Operit 格式
+     */
+    private fun convertToOperitFormat(content: String, format: ChatFormat): List<ChatHistory> {
+        return try {
+            when (format) {
+                ChatFormat.OPERIT -> {
+                    // 尝试直接解析为 Operit 格式
+                    val json = Json {
+                        ignoreUnknownKeys = true
+                        isLenient = true
+                        encodeDefaults = true
+                    }
+                    try {
+                        json.decodeFromString<List<ChatHistory>>(content)
+                    } catch (e: Exception) {
+                        // 回退到 Gson
+                        val gson = GsonBuilder()
+                            .setDateFormat("yyyy-MM-dd'T'HH:mm:ss")
+                            .create()
+                        val type = object : TypeToken<List<ChatHistory>>() {}.type
+                        gson.fromJson<List<ChatHistory>>(content, type)
+                    }
+                }
+                
+                ChatFormat.CHATGPT -> {
+                    Log.d(TAG, "使用 ChatGPT 转换器")
+                    ChatGPTConverter().convert(content)
+                }
+                
+                ChatFormat.CHATBOX -> {
+                    Log.d(TAG, "使用 ChatBox 转换器")
+                    ChatBoxConverter().convert(content)
+                }
+                
+                ChatFormat.MARKDOWN -> {
+                    Log.d(TAG, "使用 Markdown 转换器")
+                    MarkdownConverter().convert(content)
+                }
+                
+                ChatFormat.GENERIC_JSON -> {
+                    Log.d(TAG, "使用通用 JSON 转换器")
+                    GenericJsonConverter().convert(content)
+                }
+                
+                ChatFormat.CLAUDE -> {
+                    // Claude 格式暂不支持，回退到通用 JSON
+                    Log.d(TAG, "Claude 格式回退到通用 JSON 转换器")
+                    GenericJsonConverter().convert(content)
+                }
+                
+                else -> {
+                    throw ConversionException("不支持的格式: $format")
+                }
+            }
+        } catch (e: ConversionException) {
+            throw Exception("格式转换失败: ${e.message}", e)
+        } catch (e: Exception) {
+            throw Exception("无法解析备份文件：${e.message}\n请确保文件格式正确", e)
+        }
+    }
 
     /**
      * 清理绑定已删除角色卡的对话（将characterCardName设为null）

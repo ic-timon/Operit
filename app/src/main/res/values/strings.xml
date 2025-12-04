@@ -1038,6 +1038,7 @@
     <string name="stop_reading">停止朗读</string>
     <string name="edit_and_resend">编辑并重发</string>
     <string name="select_copy">选择并复制</string>
+    <string name="insert_summary">插入总结</string>
     <string name="create_branch">创建分支</string>
     <string name="branch">分支</string>
     <string name="parent_chat">父对话: %1$s</string>
@@ -3429,4 +3430,104 @@
     <string name="status_info_block">状态信息</string>
     <string name="html_content_block">HTML内容</string>
     <string name="mood_tag_block">情绪标签</string>
+    
+    <!-- 备份设置界面 -->
+    <string name="backup_data_overview">数据概览</string>
+    <string name="backup_current_profile">当前配置：%1$s</string>
+    <string name="backup_chat_count">聊天记录</string>
+    <string name="backup_memory_count">记忆条目</string>
+    <string name="backup_memory_link_count">记忆关联</string>
+    
+    <string name="backup_files_statistics">备份文件统计</string>
+    <string name="backup_files_statistics_subtitle">Operit 导出目录中的备份文件</string>
+    <string name="backup_refresh">刷新</string>
+    <string name="backup_scanning">扫描中</string>
+    <string name="backup_chat_files">聊天记录</string>
+    <string name="backup_memory_files">记忆库</string>
+    <string name="backup_model_config_files">模型配置</string>
+    <string name="backup_files_location_hint">提示：备份文件保存在 Download/Operit 文件夹</string>
+    
+    <string name="backup_chat_history">聊天记录</string>
+    <string name="backup_chat_history_subtitle">跨格式备份、导出与恢复</string>
+    <string name="backup_chat_current_count">当前共有 %1$d 条聊天记录。</string>
+    <string name="backup_export">导出</string>
+    <string name="backup_import">导入</string>
+    <string name="backup_delete_all">删除全部</string>
+    
+    <string name="backup_memory_library">记忆库</string>
+    <string name="backup_memory_library_subtitle">跨配置备份与恢复，保持思维链一致</string>
+    <string name="backup_memory_current_count">当前共有 %1$d 条记忆和 %2$d 个链接。</string>
+    
+    <string name="backup_model_config">模型配置</string>
+    <string name="backup_model_config_subtitle">备份与恢复所有模型设置，包括API密钥和参数</string>
+    <string name="backup_model_config_current_count">当前共有 %1$d 个模型配置。</string>
+    
+    <string name="backup_exporting">正在导出%1$s...</string>
+    <string name="backup_importing">正在导入%1$s...</string>
+    <string name="backup_deleting">正在清除聊天记录...</string>
+    <string name="backup_export_success">导出成功</string>
+    <string name="backup_import_success">导入成功</string>
+    <string name="backup_delete_success">清除成功</string>
+    <string name="backup_operation_failed">操作失败</string>
+    
+    <string name="backup_faq_title">常见问题</string>
+    <string name="backup_faq_subtitle">了解备份与导入时的注意事项，避免常见误区。</string>
+    <string name="backup_faq_why">为什么要备份数据？</string>
+    <string name="backup_faq_why_answer">备份聊天记录可以防止应用卸载或数据丢失时，您的重要内容丢失。定期备份是个好习惯！</string>
+    <string name="backup_faq_where">导出的文件保存在哪里？</string>
+    <string name="backup_faq_where_answer">导出的备份文件会保存在您手机的「下载/Operit」文件夹中，文件名包含导出的数据类型、日期和时间。</string>
+    <string name="backup_faq_duplicate">导入后会出现重复的数据吗？</string>
+    <string name="backup_faq_duplicate_answer">系统会根据记录ID判断，相同ID的记录会被更新而不是重复导入。不同ID的记录会作为新记录添加。</string>
+    
+    <!-- 导出格式选择 -->
+    <string name="backup_select_export_format">选择导出格式</string>
+    <string name="backup_select_format_hint">请选择要导出的聊天记录格式：</string>
+    <string name="backup_format_json">JSON（推荐）</string>
+    <string name="backup_format_json_desc">Operit 原生格式，完整保留所有数据</string>
+    <string name="backup_format_markdown">Markdown</string>
+    <string name="backup_format_markdown_desc">轻量级标记格式，便于阅读和编辑</string>
+    <string name="backup_format_html">HTML</string>
+    <string name="backup_format_html_desc">网页格式，适合在浏览器中查看</string>
+    <string name="backup_format_txt">纯文本</string>
+    <string name="backup_format_txt_desc">简单的文本格式，便于分享</string>
+    
+    <!-- 导入格式选择 -->
+    <string name="backup_select_import_format">选择导入格式</string>
+    <string name="backup_import_format_hint">请选择要导入的聊天记录格式：</string>
+    <string name="backup_format_operit">Operit JSON（推荐）</string>
+    <string name="backup_format_operit_desc">本应用的原生格式，完整保留所有数据</string>
+    <string name="backup_format_chatgpt">ChatGPT</string>
+    <string name="backup_format_chatgpt_desc">OpenAI ChatGPT conversations.json 导出格式</string>
+    <string name="backup_format_chatbox">ChatBox</string>
+    <string name="backup_format_chatbox_desc">ChatBox 桌面应用导出格式</string>
+    <string name="backup_format_generic_json">通用 JSON</string>
+    <string name="backup_format_generic_json_desc">标准 role-content 结构的 JSON（支持 Claude、LibreChat 等）</string>
+    
+    <string name="backup_import_result_success">成功导入 %1$s 格式：\n- 新增记录：%2$d条\n- 更新记录：%3$d条%4$s</string>
+    <string name="backup_import_result_skipped">\n- 跳过无效记录：%1$d条</string>
+    <string name="backup_import_result_failed">导入失败：未找到有效的聊天记录</string>
+    <string name="backup_export_result_success">成功导出到：%1$s</string>
+    
+    <!-- 删除确认对话框 -->
+    <string name="backup_delete_confirm_title">确认删除</string>
+    <string name="backup_delete_confirm_message">删除所有聊天记录将无法恢复。建议在执行此操作前先导出备份。\n\n确定要删除吗？</string>
+    <string name="backup_delete_result_success">成功清除 %1$d 条聊天记录</string>
+    
+    <!-- 模型配置导出安全警告 -->
+    <string name="backup_model_config_warning_title">安全提示</string>
+    <string name="backup_model_config_warning_contains">该配置文件包含以下敏感信息：</string>
+    <string name="backup_model_config_warning_api_key">API 密钥</string>
+    <string name="backup_model_config_warning_api_endpoint">API 端点地址</string>
+    <string name="backup_model_config_warning_model_params">模型参数配置</string>
+    <string name="backup_model_config_warning_custom_params">自定义参数设置</string>
+    <string name="backup_model_config_warning_security_tips">安全建议：</string>
+    <string name="backup_model_config_warning_tips">• 请勿将此文件分享给他人\n• 请勿上传到公共云存储\n• 建议将文件移动到安全位置\n• 建议使用加密工具保护文件</string>
+    <string name="backup_model_config_warning_export_path">导出位置：</string>
+    <string name="backup_model_config_warning_confirm">我知道了</string>
+    
+    <!-- 记忆库导入策略 -->
+    <string name="backup_memory_import_strategy_title">选择导入策略</string>
+    <string name="backup_memory_import_profile_title">选择配置</string>
+    <string name="backup_confirm">确认</string>
+    <string name="backup_cancel">取消</string>
 </resources>

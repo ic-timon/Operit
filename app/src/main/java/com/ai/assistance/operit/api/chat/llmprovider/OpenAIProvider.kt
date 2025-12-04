@@ -377,8 +377,19 @@ open class OpenAIProvider(
                         val (textContent, toolCalls) = parseXmlToolCalls(content)
                         val historyMessage = JSONObject()
                         historyMessage.put("role", role)
-                        if (textContent.isNotEmpty()) {
-                            historyMessage.put("content", buildContentField(textContent))
+                        
+                        // 检查是否为空消息，如果是则填充 "[空消息]"
+                        val effectiveContent = if (content.isBlank()) {
+                            Log.d("AIService", "发现空的assistant消息，填充为[空消息]")
+                            "[Empty]"
+                        } else if (textContent.isNotEmpty()) {
+                            textContent
+                        } else {
+                            null
+                        }
+                        
+                        if (effectiveContent != null) {
+                            historyMessage.put("content", buildContentField(effectiveContent))
                         } else {
                             historyMessage.put("content", null)
                         }
@@ -452,7 +463,16 @@ open class OpenAIProvider(
                     // 不启用Tool Call API时，保持原样
                     val historyMessage = JSONObject()
                     historyMessage.put("role", role)
-                    historyMessage.put("content", buildContentField(content))
+                    
+                    // 检查assistant角色的空消息
+                    val effectiveContent = if (role == "assistant" && content.isBlank()) {
+                        Log.d("AIService", "发现空的assistant消息，填充为[空消息]")
+                        "[Empty]"
+                    } else {
+                        content
+                    }
+                    
+                    historyMessage.put("content", buildContentField(effectiveContent))
                     messagesArray.put(historyMessage)
                 }
             }
@@ -463,10 +483,18 @@ open class OpenAIProvider(
 
     override suspend fun calculateInputTokens(
             message: String,
-            chatHistory: List<Pair<String, String>>
+            chatHistory: List<Pair<String, String>>,
+            availableTools: List<ToolPrompt>?
     ): Int {
+        // 构建工具定义的JSON字符串
+        val toolsJson = if (enableToolCall && availableTools != null && availableTools.isNotEmpty()) {
+            val tools = buildToolDefinitions(availableTools)
+            if (tools.length() > 0) tools.toString() else null
+        } else {
+            null
+        }
         // 使用TokenCacheManager计算token数量
-        return tokenCacheManager.calculateInputTokens(message, chatHistory)
+        return tokenCacheManager.calculateInputTokens(message, chatHistory, toolsJson)
     }
 
     // ==================== Tool Call 支持 ====================

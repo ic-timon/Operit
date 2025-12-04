@@ -440,10 +440,18 @@ class ClaudeProvider(
 
     override suspend fun calculateInputTokens(
             message: String,
-            chatHistory: List<Pair<String, String>>
+            chatHistory: List<Pair<String, String>>,
+            availableTools: List<ToolPrompt>?
     ): Int {
+        // 构建工具定义的JSON字符串
+        val toolsJson = if (enableToolCall && availableTools != null && availableTools.isNotEmpty()) {
+            val tools = buildToolDefinitionsForClaude(availableTools)
+            if (tools.length() > 0) tools.toString() else null
+        } else {
+            null
+        }
         // 使用缓存管理器进行快速估算
-        return tokenCacheManager.calculateInputTokens(message, chatHistory)
+        return tokenCacheManager.calculateInputTokens(message, chatHistory, toolsJson)
     }
 
     // 创建Claude API请求体

@@ -987,10 +987,13 @@ class EnhancedAIService private constructor(private val context: Context) {
 
         // 获取对应功能类型的AIService实例
         val serviceForFunction = getAIServiceForFunction(functionType)
-
+        
+        // 获取工具列表（如果启用Tool Call）- 提前获取，以便在token计算中使用
+        val availableTools = getAvailableToolsForFunction(functionType)
+ 
         // After a tool call, check if token usage exceeds the threshold
         if (maxTokens > 0) {
-            val currentTokens = serviceForFunction.calculateInputTokens("", currentChatHistory)
+            val currentTokens = serviceForFunction.calculateInputTokens("", currentChatHistory, availableTools)
             val usageRatio = currentTokens.toDouble() / maxTokens.toDouble()
 
             if (usageRatio >= tokenUsageThreshold) {
@@ -1007,9 +1010,6 @@ class EnhancedAIService private constructor(private val context: Context) {
 
         // 清空之前的单次请求token计数
         _perRequestTokenCounts.value = null
-
-        // 获取工具列表（如果启用Tool Call）
-        val availableTools = getAvailableToolsForFunction(functionType)
         
         // 使用新的Stream API处理工具执行结果
         withContext(Dispatchers.IO) {

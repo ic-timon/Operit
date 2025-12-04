@@ -569,6 +569,73 @@ class ModelConfigManager(private val context: Context) {
 
         return parameters
     }
+    
+    /**
+     * 导出所有模型配置为JSON字符串
+     * @return JSON格式的所有配置数据
+     */
+    suspend fun exportAllConfigs(): String {
+        val configList = configListFlow.first()
+        val allConfigs = mutableListOf<ModelConfigData>()
+        
+        for (configId in configList) {
+            val config = getModelConfigFlow(configId).first()
+            allConfigs.add(config)
+        }
+        
+        val json = Json {
+            prettyPrint = true
+            ignoreUnknownKeys = true
+        }
+        
+        return json.encodeToString(allConfigs)
+    }
+    
+    /**
+     * 从JSON字符串导入模型配置
+     * @param jsonContent JSON格式的配置数据
+     * @return 导入结果统计 (新增数量, 更新数量, 跳过数量)
+     */
+    suspend fun importConfigs(jsonContent: String): Triple<Int, Int, Int> {
+        try {
+            val importedConfigs = json.decodeFromString<List<ModelConfigData>>(jsonContent)
+            val existingConfigList = configListFlow.first().toMutableList()
+            val existingConfigIds = existingConfigList.toSet()
+            
+            var newCount = 0
+            var updatedCount = 0
+            var skippedCount = 0
+            
+            for (config in importedConfigs) {
+                if (config.id.isEmpty() || config.name.isEmpty()) {
+                    skippedCount++
+                    continue
+                }
+                
+                // 保存配置
+                saveConfigToDataStore(config)
+                
+                if (existingConfigIds.contains(config.id)) {
+                    updatedCount++
+                } else {
+                    newCount++
+                    existingConfigList.add(config.id)
+                }
+            }
+            
+            // 更新配置列表
+            if (newCount > 0) {
+                context.modelConfigDataStore.edit { preferences ->
+                    preferences[CONFIG_LIST_KEY] = json.encodeToString(existingConfigList)
+                }
+            }
+            
+            return Triple(newCount, updatedCount, skippedCount)
+        } catch (e: Exception) {
+            Log.e("ModelConfigManager", "导入配置失败", e)
+            throw Exception("导入失败：${e.localizedMessage ?: e.message}")
+        }
+    }
 }
 
 // 扩展函数，用于将ModelParameter转换为CustomParameterData

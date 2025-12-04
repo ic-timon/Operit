@@ -92,9 +92,49 @@ class GeminiProvider(
 
     override suspend fun calculateInputTokens(
             message: String,
-            chatHistory: List<Pair<String, String>>
+            chatHistory: List<Pair<String, String>>,
+            availableTools: List<ToolPrompt>?
     ): Int {
-        return tokenCacheManager.calculateInputTokens(message, chatHistory)
+        // 构建工具定义的JSON字符串
+        val toolsJson = buildToolsJson(availableTools)
+        return tokenCacheManager.calculateInputTokens(message, chatHistory, toolsJson)
+    }
+    
+    /**
+     * 构建工具定义的JSON字符串，用于token计算
+     */
+    private fun buildToolsJson(availableTools: List<ToolPrompt>?): String? {
+        if (!enableToolCall || availableTools == null || availableTools.isEmpty()) {
+            return if (enableGoogleSearch) {
+                // 只有 Google Search
+                JSONArray().apply {
+                    put(JSONObject().apply {
+                        put("googleSearch", JSONObject())
+                    })
+                }.toString()
+            } else {
+                null
+            }
+        }
+        
+        val tools = JSONArray()
+        
+        // 添加 Function Calling 工具
+        val functionDeclarations = buildToolDefinitionsForGemini(availableTools)
+        if (functionDeclarations.length() > 0) {
+            tools.put(JSONObject().apply {
+                put("function_declarations", functionDeclarations)
+            })
+        }
+        
+        // 添加 Google Search grounding 工具（如果启用）
+        if (enableGoogleSearch) {
+            tools.put(JSONObject().apply {
+                put("googleSearch", JSONObject())
+            })
+        }
+        
+        return if (tools.length() > 0) tools.toString() else null
     }
 
     // ==================== Tool Call 支持 ====================

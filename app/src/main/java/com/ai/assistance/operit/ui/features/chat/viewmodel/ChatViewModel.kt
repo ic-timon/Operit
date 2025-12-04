@@ -628,6 +628,80 @@ class ChatViewModel(private val context: Context) : ViewModel() {
         uiStateDelegate.showToast("已创建对话分支")
     }
 
+    /** 插入总结 */
+    fun insertSummary(index: Int, message: ChatMessage) {
+        viewModelScope.launch {
+            try {
+                // 获取当前会话ID并绑定
+                val currentChatId = chatHistoryDelegate.currentChatId.value
+                if (currentChatId == null) {
+                    uiStateDelegate.showToast("当前没有活跃的对话")
+                    return@launch
+                }
+                
+                // 先设置activeStreamingChatId，确保UI能显示状态
+                messageProcessingDelegate.setActiveStreamingChatId(currentChatId)
+                // 设置输入处理状态
+                messageProcessingDelegate.setInputProcessingState(true, "正在生成总结...")
+                
+                val currentHistory = chatHistoryDelegate.chatHistory.value
+                
+                // 确定插入位置：用户消息插入在上面（index），AI消息插入在下面（index+1）
+                val insertPosition = if (message.sender == "user") {
+                    index
+                } else {
+                    index + 1
+                }
+                
+                // 获取要总结的消息：从开始到插入位置的消息
+                val messagesToSummarize = currentHistory.subList(0, insertPosition)
+                    .filter { it.sender == "user" || it.sender == "ai" }
+                
+                if (messagesToSummarize.isEmpty()) {
+                    uiStateDelegate.showToast("没有可总结的消息")
+                    messageProcessingDelegate.setInputProcessingState(false, "")
+                    messageProcessingDelegate.setActiveStreamingChatId(null)
+                    return@launch
+                }
+                
+                // 显示生成中提示
+                uiStateDelegate.showToast("正在生成总结...")
+                
+                // 调用AI生成总结
+                if (enhancedAiService == null) {
+                    uiStateDelegate.showToast("AI服务未初始化")
+                    messageProcessingDelegate.setInputProcessingState(false, "")
+                    messageProcessingDelegate.setActiveStreamingChatId(null)
+                    return@launch
+                }
+                
+                val summaryMessage = AIMessageManager.summarizeMemory(
+                    enhancedAiService!!,
+                    messagesToSummarize,
+                    autoContinue = false
+                )
+                
+                if (summaryMessage != null) {
+                    // 插入总结消息
+                    chatHistoryDelegate.addSummaryMessage(summaryMessage, insertPosition)
+                    uiStateDelegate.showToast("总结已插入")
+                } else {
+                    uiStateDelegate.showToast("生成总结失败")
+                }
+                
+                // 清除输入处理状态
+                messageProcessingDelegate.setInputProcessingState(false, "")
+                messageProcessingDelegate.setActiveStreamingChatId(null)
+            } catch (e: Exception) {
+                Log.e(TAG, "插入总结时发生错误", e)
+                uiStateDelegate.showToast("插入总结失败: ${e.message}")
+                // 发生错误时也需要清除状态
+                messageProcessingDelegate.setInputProcessingState(false, "")
+                messageProcessingDelegate.setActiveStreamingChatId(null)
+            }
+        }
+    }
+
     /** 删除单条消息 */
     fun deleteMessage(index: Int) {
         Log.d(TAG, "准备删除消息，索引: $index")
@@ -953,6 +1027,12 @@ class ChatViewModel(private val context: Context) : ViewModel() {
     fun handleAttachment(filePath: String) {
         viewModelScope.launch {
             try {
+                // 获取当前会话ID并绑定
+                val currentChatId = chatHistoryDelegate.currentChatId.value
+                if (currentChatId != null) {
+                    messageProcessingDelegate.setActiveStreamingChatId(currentChatId)
+                }
+                
                 // 显示附件处理进度
                 messageProcessingDelegate.setInputProcessingState(true, "正在处理附件...")
 
@@ -960,12 +1040,14 @@ class ChatViewModel(private val context: Context) : ViewModel() {
 
                 // 清除附件处理进度显示
                 messageProcessingDelegate.setInputProcessingState(false, "")
+                messageProcessingDelegate.setActiveStreamingChatId(null)
             } catch (e: Exception) {
                 Log.e(TAG, "处理附件失败", e)
                 // 修改: 使用错误弹窗而不是 Toast 显示附件处理错误
                 uiStateDelegate.showErrorMessage("处理附件失败: ${e.message}")
                 // 发生错误时也需要清除进度显示
                 messageProcessingDelegate.setInputProcessingState(false, "")
+                messageProcessingDelegate.setActiveStreamingChatId(null)
             }
         }
     }
@@ -999,6 +1081,13 @@ class ChatViewModel(private val context: Context) : ViewModel() {
         viewModelScope.launch {
             try {
                 messageProcessingDelegate.updateUserMessage(TextFieldValue(""))
+                
+                // 获取当前会话ID并绑定
+                val currentChatId = chatHistoryDelegate.currentChatId.value
+                if (currentChatId != null) {
+                    messageProcessingDelegate.setActiveStreamingChatId(currentChatId)
+                }
+                
                 // 显示屏幕内容获取进度
                 messageProcessingDelegate.setInputProcessingState(true, "正在获取屏幕内容...")
                 uiStateDelegate.showToast("正在获取屏幕内容...")
@@ -1008,10 +1097,12 @@ class ChatViewModel(private val context: Context) : ViewModel() {
 
                 // 清除进度显示
                 messageProcessingDelegate.setInputProcessingState(false, "")
+                messageProcessingDelegate.setActiveStreamingChatId(null)
             } catch (e: Exception) {
                 Log.e(TAG, "截取屏幕内容失败", e)
                 uiStateDelegate.showErrorMessage("截取屏幕内容失败: ${e.message}")
                 messageProcessingDelegate.setInputProcessingState(false, "")
+                messageProcessingDelegate.setActiveStreamingChatId(null)
             }
         }
     }
@@ -1021,6 +1112,13 @@ class ChatViewModel(private val context: Context) : ViewModel() {
         viewModelScope.launch {
             try {
                 messageProcessingDelegate.updateUserMessage(TextFieldValue(""))
+                
+                // 获取当前会话ID并绑定
+                val currentChatId = chatHistoryDelegate.currentChatId.value
+                if (currentChatId != null) {
+                    messageProcessingDelegate.setActiveStreamingChatId(currentChatId)
+                }
+                
                 // 显示通知获取进度
                 messageProcessingDelegate.setInputProcessingState(true, "正在获取当前通知...")
                 uiStateDelegate.showToast("正在获取当前通知...")
@@ -1030,10 +1128,12 @@ class ChatViewModel(private val context: Context) : ViewModel() {
 
                 // 清除进度显示
                 messageProcessingDelegate.setInputProcessingState(false, "")
+                messageProcessingDelegate.setActiveStreamingChatId(null)
             } catch (e: Exception) {
                 Log.e(TAG, "获取通知数据失败", e)
                 uiStateDelegate.showErrorMessage("获取通知数据失败: ${e.message}")
                 messageProcessingDelegate.setInputProcessingState(false, "")
+                messageProcessingDelegate.setActiveStreamingChatId(null)
             }
         }
     }
@@ -1043,6 +1143,13 @@ class ChatViewModel(private val context: Context) : ViewModel() {
         viewModelScope.launch {
             try {
                 messageProcessingDelegate.updateUserMessage(TextFieldValue(""))
+                
+                // 获取当前会话ID并绑定
+                val currentChatId = chatHistoryDelegate.currentChatId.value
+                if (currentChatId != null) {
+                    messageProcessingDelegate.setActiveStreamingChatId(currentChatId)
+                }
+                
                 // 显示位置获取进度
                 messageProcessingDelegate.setInputProcessingState(true, "正在获取位置信息...")
                 uiStateDelegate.showToast("正在获取位置信息...")
@@ -1052,10 +1159,12 @@ class ChatViewModel(private val context: Context) : ViewModel() {
                 
                 // 隐藏进度状态
                 messageProcessingDelegate.setInputProcessingState(false, "")
+                messageProcessingDelegate.setActiveStreamingChatId(null)
             } catch (e: Exception) {
                 Log.e(TAG, "Error capturing location", e)
                 uiStateDelegate.showToast("获取位置失败: ${e.message}")
                 messageProcessingDelegate.setInputProcessingState(false, "")
+                messageProcessingDelegate.setActiveStreamingChatId(null)
             }
         }
     }

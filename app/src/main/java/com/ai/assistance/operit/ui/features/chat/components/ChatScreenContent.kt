@@ -241,6 +241,7 @@ fun ChatScreenContent(
                         onAutoReadMessage = { content -> actualViewModel.enableAutoReadAndSpeak(content) }, // 添加自动朗读回调
                         onReplyToMessage = { message -> actualViewModel.setReplyToMessage(message) }, // 添加回复回调
                         onCreateBranch = { timestamp -> actualViewModel.createBranch(timestamp) }, // 添加创建分支回调
+                        onInsertSummary = { index, message -> actualViewModel.insertSummary(index, message) }, // 添加插入总结回调
                         topPadding = headerHeight,
                         chatStyle = chatStyle, // Pass chat style
                         isMultiSelectMode = isMultiSelectMode,
@@ -311,6 +312,7 @@ fun ChatScreenContent(
                         onSpeakMessage = { content -> actualViewModel.speakMessage(content) }, // 添加朗读回调
                         onReplyToMessage = { message -> actualViewModel.setReplyToMessage(message) }, // 添加回复回调
                         onCreateBranch = { timestamp -> actualViewModel.createBranch(timestamp) }, // 添加创建分支回调
+                        onInsertSummary = { index, message -> actualViewModel.insertSummary(index, message) }, // 添加插入总结回调
                         onAutoReadMessage = { content -> actualViewModel.enableAutoReadAndSpeak(content) }, // 添加自动朗读回调
                         chatStyle = chatStyle, // Pass chat style
                         isMultiSelectMode = isMultiSelectMode,
