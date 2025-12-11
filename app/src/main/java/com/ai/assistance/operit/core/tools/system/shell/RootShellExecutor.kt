@@ -17,6 +17,7 @@ import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers as CoroutineDispatchers
 
 /** 基于Root权限的Shell命令执行器 实现ROOT权限级别的命令执行 */
@@ -310,13 +311,13 @@ private class LibSuShellProcess(command: String) : ShellProcess {
 
     override val stdout: Flow<String> = callbackFlow {
         try {
-            // Get the result from the future
             val result = future.get()
             result.out.forEach { line ->
                 trySend(line)
             }
         } catch (e: Exception) {
             // Handle any execution errors
+            AppLogger.e("RootShellExecutor", "Error getting shell result", e)
         }
         close()
         awaitClose { }
@@ -325,13 +326,13 @@ private class LibSuShellProcess(command: String) : ShellProcess {
 
     override val stderr: Flow<String> = callbackFlow {
         try {
-            // Get the result from the future
             val result = future.get()
             result.err.forEach { line ->
                 trySend(line)
             }
         } catch (e: Exception) {
             // Handle any execution errors
+            AppLogger.e("RootShellExecutor", "Error getting shell result", e)
         }
         close()
         awaitClose { }
@@ -351,6 +352,7 @@ private class LibSuShellProcess(command: String) : ShellProcess {
             val result = future.get()
             result.code
         } catch (e: Exception) {
+            AppLogger.e("RootShellExecutor", "Error waiting for shell result", e)
             -1
         }
     }

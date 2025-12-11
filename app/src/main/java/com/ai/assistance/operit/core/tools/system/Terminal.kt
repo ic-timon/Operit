@@ -21,7 +21,6 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.transformWhile
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.collect
 
@@ -135,14 +134,13 @@ class Terminal private constructor(private val context: Context) {
                 }
         }
 
-        collectorReady.await() // 等待收集器准备就绪
+        // 等待收集器准备就绪
+        collectorReady.await()
         
         // 直接向指定会话发送命令，不切换当前会话
         terminalManager.sendCommandToSession(sessionId, command, commandId)
 
-        val result = withTimeoutOrNull(300000) { // 5 分钟超时
-            deferred.await()
-        }
+        val result = deferred.await()
         
         job.cancel()
         

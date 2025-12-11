@@ -10,6 +10,7 @@ import com.ai.assistance.operit.api.chat.EnhancedAIService
 import com.ai.assistance.operit.api.chat.library.ProblemLibrary
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -59,7 +60,7 @@ object OnnxEmbeddingService {
             AppLogger.d(TAG, "OnnxEmbeddingService is already initializing, waiting...")
             // Wait for initialization to complete
             while (isInitializing && !isInitialized) {
-                Thread.sleep(100)
+                delay(100)
             }
             return@withContext
         }

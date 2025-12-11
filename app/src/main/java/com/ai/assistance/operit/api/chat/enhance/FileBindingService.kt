@@ -398,13 +398,17 @@ class FileBindingService(context: Context) {
             }
 
             for (future in tasks) {
-                val result = future.get()
-                totalWindows += result.windows
-                lcsCalculations += result.lcsCalculations
+                try {
+                    val result = future.get()
+                    totalWindows += result.windows
+                    lcsCalculations += result.lcsCalculations
 
-                if (result.bestScore > bestMatchScore) {
-                    bestMatchScore = result.bestScore
-                    bestMatchRange = result.startLine to result.endLine
+                    if (result.bestScore > bestMatchScore) {
+                        bestMatchScore = result.bestScore
+                        bestMatchRange = result.startLine to result.endLine
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e(TAG, "Error getting file binding search result", e)
                 }
             }
 
